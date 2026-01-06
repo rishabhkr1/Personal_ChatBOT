@@ -2,7 +2,7 @@
 
 > **"Built using Google Antigravity"**
 
-**growGPT** is a highly specialized, immersive Personal Chatbot designed to assist with **Java and Spring Boot** development. It moves beyond standard chat interfaces, offering a gamified "Dungeon Vault" experience that makes coding feel like an RPG adventure.
+**growGPT** is a highly specialized, immersive growGPT designed to assist with **Java and Spring Boot** development. It moves beyond standard chat interfaces, offering a gamified "Dungeon Vault" experience that makes coding feel like an RPG adventure.
 
 ![growGPT Preview](./dist/preview.png)
 
@@ -29,6 +29,21 @@
 *   **3D Engine**: Three.js / @react-three/fiber
 *   **Styling**: Plain CSS (Glassmorphism & Neon aesthetics)
 *   **AI Logic**: Custom Local RAG (Rule-Based + Knowledge Base)
+
+## ⚙️ Configuration
+
+1.  **Create Environment File**
+    Copy the example configuration file:
+    ```bash
+    cp .env.example .env
+    ```
+
+2.  **Add API Keys**
+    Open `.env` and add your API keys:
+    ```
+    VITE_GEMINI_API_KEY=your_gemini_key
+    VITE_OPENAI_API_KEY=your_openai_key
+    ```
 
 ## 🏃‍♂️ Quick Start
 

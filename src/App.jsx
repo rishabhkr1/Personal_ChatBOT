@@ -1,6 +1,7 @@
 import ChatInterface from './components/ChatInterface';
 import Background3D from './components/Background3D';
 import LoginPage from './components/LoginPage';
+import SupportWidget from './components/SupportWidget';
 import { useState } from 'react';
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
           <ChatInterface onLogout={() => setIsLoggedIn(false)} />
         )}
       </div>
+      <SupportWidget />
     </>
   );
 }

@@ -27,7 +27,7 @@ const KNOWLEDGE_BASE = [
     // Persona / Identity
     {
         keywords: ['who made you', 'created by', 'author', 'developer'],
-        answer: "I was created by **Rishabh**, a visionary developer who integrated Google's Antigravity technology to build this immersive 3D Personal Chatbot."
+        answer: "I was created by **Rishabh**, a visionary developer who integrated Google's Antigravity technology to build this immersive 3D growGPT."
     },
     {
         keywords: ['who are you', 'what are you', 'identity', 'your name'],
@@ -80,21 +80,90 @@ const KNOWLEDGE_BASE = [
 const FALLBACK_ANSWER = "I'm sorry, I only have access to data about Java and Spring Boot. Please ask me something related to those topics.";
 
 // Simulate a network delay for realism
-export const sendMessageToAI = async (message) => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const lowerMsg = message.toLowerCase();
+// Simulate a network delay for realism
+// Safe API Call Wrappers
+const callGemini = async (message) => {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) throw new Error("Missing VITE_GEMINI_API_KEY in .env");
 
-            // Simple keyword matching
-            const match = KNOWLEDGE_BASE.find(entry =>
-                entry.keywords.some(keyword => lowerMsg.includes(keyword))
-            );
-
-            if (match) {
-                resolve(match.answer);
-            } else {
-                resolve(FALLBACK_ANSWER);
-            }
-        }, 800); // 800ms simulated delay
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: message }] }]
+        })
     });
+
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error?.message || "Gemini API Error");
+    }
+
+    const data = await response.json();
+    return data.candidates[0].content.parts[0].text;
+};
+
+const callChatGPT = async (message) => {
+    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    if (!apiKey) throw new Error("Missing VITE_OPENAI_API_KEY in .env");
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+            model: "gpt-3.5-turbo",
+            messages: [{ role: "user", content: message }],
+            temperature: 0.7
+        })
+    });
+
+    if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error?.message || "OpenAI API Error");
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content;
+};
+
+// Main AI Handler
+export const sendMessageToAI = async (message, provider = 'local') => {
+    try {
+        if (provider === 'gemini') {
+            try {
+                return await callGemini(message);
+            } catch (e) {
+                console.warn("Gemini API failed, falling back to simulated response:", e);
+                return `[Gemini Error] ${e.message}. \n\n(Ensure VITE_GEMINI_API_KEY is set in .env)`;
+            }
+        }
+
+        if (provider === 'chatgpt') {
+            try {
+                return await callChatGPT(message);
+            } catch (e) {
+                console.warn("ChatGPT API failed, falling back to simulated response:", e);
+                return `[ChatGPT Error] ${e.message}. \n\n(Ensure VITE_OPENAI_API_KEY is set in .env)`;
+            }
+        }
+
+        // Default: Local Knowledge Base (Simulated Delay)
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                const lowerMsg = message.toLowerCase();
+                const match = KNOWLEDGE_BASE.find(entry =>
+                    entry.keywords.some(keyword => lowerMsg.includes(keyword))
+                );
+                resolve(match ? match.answer : FALLBACK_ANSWER);
+            }, 800);
+        });
+
+    } catch (error) {
+        return `Error: ${error.message}`;
+    }
 };
