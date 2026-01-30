@@ -208,7 +208,17 @@ const Mountains = () => {
     );
 };
 
-const Background3D = () => {
+const Background3D = ({ isDarkMode }) => {
+    // Colors based on mode
+    const bgGradient = isDarkMode
+        ? 'linear-gradient(to bottom, #000000 0%, #1a1a1a 100%)'
+        : 'linear-gradient(to bottom, #64748b 0%, #334155 100%)';
+
+    const cloudColor1 = isDarkMode ? '#111111' : '#94a3b8';
+    const cloudColor2 = isDarkMode ? '#050505' : '#64748b';
+    const fogColor = isDarkMode ? '#000000' : '#334155';
+    const lightIntensity = isDarkMode ? 0.5 : 2.0; // Dimmer sun in dark mode
+
     return (
         <div style={{
             position: 'fixed',
@@ -217,13 +227,14 @@ const Background3D = () => {
             width: '100%',
             height: '100%',
             zIndex: 0,
-            background: 'linear-gradient(to bottom, #64748b 0%, #334155 100%)', // Lighter Stormy Day
-            pointerEvents: 'none'
+            background: bgGradient,
+            pointerEvents: 'none',
+            transition: 'background 1s ease' // Smooth transition
         }}>
             <Canvas>
                 <PerspectiveCamera makeDefault position={[0, 0, 15]} />
-                <ambientLight intensity={1.2} /> {/* Much brighter ambient */}
-                <directionalLight position={[10, 10, 5]} intensity={2.0} color="#ffffff" /> {/* Bright white sun/moon */}
+                <ambientLight intensity={isDarkMode ? 0.4 : 1.2} />
+                <directionalLight position={[10, 10, 5]} intensity={lightIntensity} color="#ffffff" />
 
                 {/* 3D Lightning Bolt System */}
                 <LightningBolt />
@@ -234,16 +245,16 @@ const Background3D = () => {
                 {/* Mountains */}
                 <Mountains />
 
-                {/* Stormy Clouds - Update colors to blend with lighter sky */}
+                {/* Stormy Clouds */}
                 <Clouds material={THREE.MeshStandardMaterial} limit={400}>
-                    <Cloud seed={1} bounds={[20, 6, 4]} volume={15} color="#94a3b8" position={[0, 5, -10]} opacity={0.8} speed={0.4} />
-                    <Cloud seed={2} bounds={[20, 6, 4]} volume={15} color="#64748b" position={[0, -5, -12]} opacity={0.6} speed={0.3} />
+                    <Cloud seed={1} bounds={[20, 6, 4]} volume={15} color={cloudColor1} position={[0, 5, -10]} opacity={0.8} speed={0.4} />
+                    <Cloud seed={2} bounds={[20, 6, 4]} volume={15} color={cloudColor2} position={[0, -5, -12]} opacity={0.6} speed={0.3} />
                 </Clouds>
 
                 {/* Rain */}
                 <Rain count={2000} />
 
-                <fog attach="fog" args={['#334155', 5, 60]} /> {/* Match bottom gradient */}
+                <fog attach="fog" args={[fogColor, 5, 60]} />
             </Canvas>
         </div>
     );

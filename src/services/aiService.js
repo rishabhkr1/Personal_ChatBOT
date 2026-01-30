@@ -1,4 +1,10 @@
+import { ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { ChatOpenAI } from "@langchain/openai";
+import { CloseVectorWeb } from "@langchain/community/vectorstores/closevector/web";
+import { Document } from "@langchain/core/documents";
+
 // Local Knowledge Base Data
+const FALLBACK_ANSWER = "I'm sorry, I couldn't find anything in my local knowledge base about that. (Offline Mode)";
 const KNOWLEDGE_BASE = [
     {
         keywords: ['java', 'what is java'],
@@ -77,67 +83,149 @@ const KNOWLEDGE_BASE = [
     }
 ];
 
-const FALLBACK_ANSWER = "I'm sorry, I only have access to data about Java and Spring Boot. Please ask me something related to those topics.";
+// Initialize Vector Store (Singleton Pattern)
+let vectorStore = null;
+
+const getVectorStore = async () => {
+    if (vectorStore) return vectorStore;
+
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) throw new Error("Missing VITE_GEMINI_API_KEY for Embeddings");
+
+    const documents = KNOWLEDGE_BASE.map(item => {
+        return new Document({
+            pageContent: `${item.keywords.join(", ")}. ${item.answer}`, // Index both keywords and answer for better retrieval
+            metadata: { answer: item.answer },
+        });
+    });
+
+    const embeddings = new GoogleGenerativeAIEmbeddings({
+        apiKey: apiKey,
+        modelName: "embedding-001", // or text-embedding-004
+    });
+
+    vectorStore = await CloseVectorWeb.fromDocuments(documents, embeddings);
+    return vectorStore;
+};
+
+// Fallback: Simple Keyword Matching
+const keywordSearch = (message) => {
+    const lowerMsg = message.toLowerCase();
+    const match = KNOWLEDGE_BASE.find(entry =>
+        entry.keywords.some(keyword => lowerMsg.includes(keyword))
+    );
+    return match ? match.answer : FALLBACK_ANSWER;
+};
 
 // Simulate a network delay for realism
 // Simulate a network delay for realism
 // Safe API Call Wrappers
-const callGemini = async (message) => {
+// LangChain Implementation for Gemini
+const callGemini = async (message, context, signal) => {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     if (!apiKey) throw new Error("Missing VITE_GEMINI_API_KEY in .env");
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            contents: [{ parts: [{ text: message }] }]
-        })
-    });
+    try {
+        const model = new ChatGoogleGenerativeAI({
+            model: "gemini-pro",
+            apiKey: apiKey,
+            maxOutputTokens: 2048,
+        });
 
-    if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error?.message || "Gemini API Error");
+        const prompt = `
+        You are an expert Java & Spring Boot AI assistant.
+        Use the following retrieved context to answer the user's question.
+        If the context is relevant, use it. If not, rely on your general knowledge but mention you are using general knowledge.
+        
+        Context: ${context}
+        
+        Question: ${message}
+        `;
+
+        if (signal?.aborted) throw new Error("Aborted");
+        const response = await model.invoke(prompt, { signal });
+        return response.content;
+    } catch (error) {
+        if (error.name === 'AbortError' || signal?.aborted) throw new Error("Aborted by user");
+        throw new Error(error.message || "Gemini LangChain Error");
     }
-
-    const data = await response.json();
-    return data.candidates[0].content.parts[0].text;
 };
 
-const callChatGPT = async (message) => {
+// LangChain Implementation for OpenAI
+const callChatGPT = async (message, context, signal) => {
     const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
     if (!apiKey) throw new Error("Missing VITE_OPENAI_API_KEY in .env");
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-            model: "gpt-3.5-turbo",
-            messages: [{ role: "user", content: message }],
-            temperature: 0.7
-        })
-    });
+    try {
+        const chat = new ChatOpenAI({
+            modelName: "gpt-3.5-turbo",
+            openAIApiKey: apiKey,
+            temperature: 0.7,
+        });
 
-    if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error?.message || "OpenAI API Error");
+        const prompt = `
+        You are an expert Java & Spring Boot AI assistant.
+        Use the following retrieved context to answer the user's question.
+        If the context is relevant, use it. If not, rely on your general knowledge but mention you are using general knowledge.
+        
+        Context: ${context}
+        
+        Question: ${message}
+        `;
+
+        if (signal?.aborted) throw new Error("Aborted");
+        const response = await chat.invoke(prompt, { signal });
+        return response.content;
+    } catch (error) {
+        if (error.name === 'AbortError' || signal?.aborted) throw new Error("Aborted by user");
+        throw new Error(error.message || "OpenAI LangChain Error");
     }
-
-    const data = await response.json();
-    return data.choices[0].message.content;
 };
 
 // Main AI Handler
-export const sendMessageToAI = async (message, provider = 'local') => {
+export const sendMessageToAI = async (message, provider = 'local', signal) => {
     try {
+        if (signal?.aborted) throw new Error("Aborted by user");
+
+        let context = "";
+        let useRag = false;
+
+        try {
+            // 1. Try to Retrieve Context using RAG (Timeout after 3s to prevent hanging)
+            const ragPromise = async () => {
+                const store = await getVectorStore();
+                const results = await store.similaritySearch(message, 2);
+                return results;
+            };
+
+            const timeoutPromise = new Promise((_, reject) => {
+                const id = setTimeout(() => reject(new Error("RAG Timeout")), 3000);
+                if (signal) {
+                    signal.addEventListener('abort', () => {
+                        clearTimeout(id);
+                        reject(new Error("Aborted by user"));
+                    });
+                }
+            });
+
+            const results = await Promise.race([ragPromise(), timeoutPromise]);
+
+            context = results.map(res => res.metadata.answer).join("\n\n");
+            useRag = true;
+            console.log("Retrieved Context:", context);
+        } catch (error) {
+            if (error.message === "Aborted by user") throw error;
+            console.warn("RAG/Embeddings check failed or timed out. Falling back to keyword search.", error);
+            // Fallback proceeds below
+        }
+
+        if (signal?.aborted) throw new Error("Aborted by user");
+
         if (provider === 'gemini') {
             try {
-                return await callGemini(message);
+                return await callGemini(message, context, signal);
             } catch (e) {
+                if (e.message.includes("Aborted")) throw e;
                 console.warn("Gemini API failed, falling back to simulated response:", e);
                 return `[Gemini Error] ${e.message}. \n\n(Ensure VITE_GEMINI_API_KEY is set in .env)`;
             }
@@ -145,25 +233,42 @@ export const sendMessageToAI = async (message, provider = 'local') => {
 
         if (provider === 'chatgpt') {
             try {
-                return await callChatGPT(message);
+                return await callChatGPT(message, context, signal);
             } catch (e) {
+                if (e.message.includes("Aborted")) throw e;
                 console.warn("ChatGPT API failed, falling back to simulated response:", e);
                 return `[ChatGPT Error] ${e.message}. \n\n(Ensure VITE_OPENAI_API_KEY is set in .env)`;
             }
         }
 
-        // Default: Local Knowledge Base (Simulated Delay)
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                const lowerMsg = message.toLowerCase();
-                const match = KNOWLEDGE_BASE.find(entry =>
-                    entry.keywords.some(keyword => lowerMsg.includes(keyword))
-                );
-                resolve(match ? match.answer : FALLBACK_ANSWER);
-            }, 800);
-        });
+        // Provider is 'local'
+        if (useRag && context) {
+            // If RAG worked, return the best match
+            return context.split("\n\n")[0];
+        } else {
+            // If RAG failed, use robust keyword fallback
+            console.log("Falling back to legacy keyword search for:", message);
+            return new Promise((resolve, reject) => {
+                const timeoutId = setTimeout(() => {
+                    if (signal?.aborted) {
+                        reject(new Error("Aborted by user"));
+                    } else {
+                        resolve(keywordSearch(message));
+                    }
+                }, 500);
 
+                if (signal) {
+                    signal.addEventListener('abort', () => {
+                        clearTimeout(timeoutId);
+                        reject(new Error("Aborted by user"));
+                    });
+                }
+            });
+        }
     } catch (error) {
+        if (error.message.includes("Aborted")) {
+            return "🛑 Generation stopped by user.";
+        }
         return `Error: ${error.message}`;
     }
 };

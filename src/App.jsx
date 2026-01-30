@@ -6,10 +6,21 @@ import { useState } from 'react';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userName, setUserName] = useState('');
+  const [isDarkMode, setIsDarkMode] = useState(true);
+
+  const handleLogin = (name) => {
+    setUserName(name || 'User');
+    setIsLoggedIn(true);
+  };
+
+  const toggleTheme = () => {
+    setIsDarkMode(!isDarkMode);
+  };
 
   return (
     <>
-      <Background3D />
+      <Background3D isDarkMode={isDarkMode} />
       <div style={{
         height: '100vh',
         width: '100vw',
@@ -20,9 +31,9 @@ function App() {
         zIndex: 1
       }}>
         {!isLoggedIn ? (
-          <LoginPage onLogin={() => setIsLoggedIn(true)} />
+          <LoginPage onLogin={handleLogin} />
         ) : (
-          <ChatInterface onLogout={() => setIsLoggedIn(false)} />
+          <ChatInterface onLogout={() => setIsLoggedIn(false)} userName={userName} isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
         )}
       </div>
       <SupportWidget />

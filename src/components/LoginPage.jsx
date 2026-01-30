@@ -59,7 +59,7 @@ const LoginPage = ({ onLogin }) => {
             setIsUnlocking(true);
             // Wait for animation
             setTimeout(() => {
-                onLogin();
+                onLogin(username);
             }, 1000);
         } else {
             setError('Invalid credentials');

@@ -1,132 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
 import { sendMessageToAI } from '../services/aiService';
 
-
-const ProviderDropdown = ({ currentProvider, onSelect, isDarkMode }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const dropdownRef = useRef(null);
-
-    // Close on click outside
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                setIsOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const providers = [
-        { id: 'local', label: 'Local', icon: '💻' },
-        { id: 'gemini', label: 'Gemini', icon: '✨' },
-        { id: 'chatgpt', label: 'ChatGPT', icon: '🧠' },
-    ];
-
-    const currentLabel = providers.find(p => p.id === currentProvider)?.label || 'Select';
-    const currentIcon = providers.find(p => p.id === currentProvider)?.icon || '';
-
-    // Inline styles for the dropdown to ensure it looks good
-    const dropdownStyle = {
-        position: 'relative',
-        display: 'inline-block',
-    };
-
-    const toggleStyle = {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '6px',
-        padding: '6px 12px',
-        borderRadius: '20px',
-        background: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-        border: '1px solid var(--glass-border)',
-        cursor: 'pointer',
-        fontSize: '0.85rem',
-        color: 'inherit',
-        transition: 'all 0.2s',
-    };
-
-    const menuStyle = {
-        position: 'absolute',
-        top: '120%',
-        left: 0,
-        background: isDarkMode ? 'rgba(30,30,35,0.95)' : 'rgba(255,255,255,0.95)',
-        border: '1px solid var(--glass-border)',
-        borderRadius: '12px',
-        padding: '5px',
-        listStyle: 'none',
-        display: isOpen ? 'block' : 'none',
-        width: '140px',
-        zIndex: 100,
-        boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
-        backdropFilter: 'blur(10px)',
-    };
-
-    const itemStyle = {
-        padding: '8px 12px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        cursor: 'pointer',
-        borderRadius: '8px',
-        fontSize: '0.9rem',
-        color: isDarkMode ? '#e0e0e0' : '#333',
-        transition: 'background 0.2s',
-    };
-
-    return (
-        <div style={dropdownStyle} ref={dropdownRef}>
-            <div
-                style={toggleStyle}
-                onClick={() => setIsOpen(!isOpen)}
-                className="interactive"
-            >
-                <span>{currentIcon}</span>
-                <span>{currentLabel}</span>
-                <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>▼</span>
-            </div>
-            <ul style={menuStyle}>
-                {providers.map(p => (
-                    <li
-                        key={p.id}
-                        style={{
-                            ...itemStyle,
-                            backgroundColor: currentProvider === p.id ? (isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') : 'transparent'
-                        }}
-                        onClick={() => {
-                            onSelect(p.id);
-                            setIsOpen(false);
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)';
-                        }}
-                        onMouseLeave={(e) => {
-                            if (currentProvider !== p.id) e.currentTarget.style.backgroundColor = 'transparent';
-                            else e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
-                        }}
-                    >
-                        <span>{p.icon}</span>
-                        {p.label}
-                    </li>
-                ))}
-            </ul>
-        </div>
-    );
-};
-
-const ChatInterface = ({ onLogout }) => {
-    const [isDarkMode, setIsDarkMode] = useState(true);
+const ChatInterface = ({ onLogout, userName = "User", isDarkMode, toggleTheme }) => {
     const [provider, setProvider] = useState('local');
-    const [messages, setMessages] = useState([
-        { id: 1, text: "Hello! I am growGPT. Select a provider and ask me anything!", sender: 'ai' }
-    ]);
+    const [messages, setMessages] = useState([]); // Start empty to show Hero Greeting
     const [inputText, setInputText] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isListening, setIsListening] = useState(false);
-    const [voiceMode, setVoiceMode] = useState('none'); // 'none', 'dictation', 'talk'
-    const [isTalkMode, setIsTalkMode] = useState(false); // Keeps the "Speaker" toggle functionality (TTS enabled/disabled)
+    const [voiceMode, setVoiceMode] = useState('none');
+    const [isTalkMode, setIsTalkMode] = useState(false);
     const messagesEndRef = useRef(null);
     const recognitionRef = useRef(null);
+    const abortControllerRef = useRef(null);
 
     const speakText = (text) => {
         if (!isTalkMode) return;
@@ -136,8 +21,37 @@ const ChatInterface = ({ onLogout }) => {
         window.speechSynthesis.speak(utterance);
     };
 
+    const [showUploadMenu, setShowUploadMenu] = useState(false);
+    const fileInputRef = useRef(null);
+
+    const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            console.log("File uploaded:", file.name);
+            // In a real app, process the file here (check type, upload to backend, etc.)
+            const systemMessage = {
+                id: Date.now(),
+                text: `[System] Uploaded file: ${file.name}`,
+                sender: 'ai'
+            };
+            setMessages(prev => [...prev, systemMessage]);
+        }
+        setShowUploadMenu(false);
+    };
+
     const stopSpeaking = () => {
         window.speechSynthesis.cancel();
+    };
+
+    const handleStop = () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+            abortControllerRef.current = null;
+        }
+    };
+
+    const handleClear = () => {
+        setMessages([]);
     };
 
     const stopListening = () => {
@@ -157,7 +71,7 @@ const ChatInterface = ({ onLogout }) => {
     }, [messages]);
 
     const handleSend = async (e) => {
-        e.preventDefault();
+        e?.preventDefault();
         if (!inputText.trim()) return;
 
         const userMessage = {
@@ -170,32 +84,43 @@ const ChatInterface = ({ onLogout }) => {
         setInputText('');
         setIsLoading(true);
 
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+
         try {
-            const response = await sendMessageToAI(userMessage.text, provider);
+            const response = await sendMessageToAI(userMessage.text, provider, controller.signal);
             const aiMessage = {
                 id: Date.now() + 1,
                 text: response,
                 sender: 'ai',
-                provider: provider // Track which provider sent this
+                provider: provider
             };
             setMessages(prev => [...prev, aiMessage]);
             speakText(response);
         } catch (error) {
-            console.error("Failed to get AI response", error);
-            const errorMessage = {
-                id: Date.now() + 1,
-                text: `Error: ${error.message}`,
-                sender: 'ai'
-            };
-            setMessages(prev => [...prev, errorMessage]);
+            if (error.message.includes("Aborted")) {
+                const abortedMessage = {
+                    id: Date.now() + 1,
+                    text: "🛑 Generation stopped by user.",
+                    sender: 'ai'
+                };
+                setMessages(prev => [...prev, abortedMessage]);
+            } else {
+                console.error("Failed to get AI response", error);
+                const errorMessage = {
+                    id: Date.now() + 1,
+                    text: `Error: ${error.message}`,
+                    sender: 'ai'
+                };
+                setMessages(prev => [...prev, errorMessage]);
+            }
         } finally {
             setIsLoading(false);
+            abortControllerRef.current = null;
         }
     };
 
-    const toggleTheme = () => {
-        setIsDarkMode(!isDarkMode);
-    };
+
 
     const startRecognition = (mode) => {
         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -208,7 +133,7 @@ const ChatInterface = ({ onLogout }) => {
         recognitionRef.current = recognition;
 
         recognition.lang = 'en-US';
-        recognition.interimResults = true; // Enable interim results for smoother typing
+        recognition.interimResults = true;
 
         recognition.onstart = () => {
             setIsListening(true);
@@ -222,11 +147,9 @@ const ChatInterface = ({ onLogout }) => {
 
             setInputText(transcript);
 
-            // Auto-send if in Talk Mode and result is final
             if (mode === 'talk' && event.results[0].isFinal) {
-                // Small delay to let the user see the text and for state to update
                 setTimeout(() => {
-                    handleSend({ preventDefault: () => { } }); // Mock event
+                    handleSend();
                     stopListening();
                 }, 500);
             }
@@ -239,7 +162,6 @@ const ChatInterface = ({ onLogout }) => {
         };
 
         recognition.onend = () => {
-            // Only stop "listening" state, let the user decide when to restart or if auto-looping (not implemented yet)
             setIsListening(false);
             setVoiceMode('none');
         };
@@ -255,403 +177,377 @@ const ChatInterface = ({ onLogout }) => {
         }
     };
 
-    const handleTalkModeInput = () => {
-        if (isListening && voiceMode === 'talk') {
-            stopListening();
-        } else {
-            // Ensure Talk Mode (TTS) is enabled when entering Voice Conversation
-            if (!isTalkMode) setIsTalkMode(true);
-            startRecognition('talk');
-        }
-    };
-
-    const getProviderTheme = (prov) => {
-        switch (prov) {
-            case 'gemini':
-                return {
-                    borderColor: 'rgba(66, 133, 244, 0.6)',
-                    boxShadow: '0 8px 32px 0 rgba(66, 133, 244, 0.25)',
-                    background: isDarkMode ? 'rgba(10, 15, 30, 0.95)' : 'rgba(255, 255, 255, 0.9)'
-                };
-            case 'chatgpt':
-                return {
-                    borderColor: 'rgba(16, 163, 127, 0.6)',
-                    boxShadow: '0 8px 32px 0 rgba(16, 163, 127, 0.25)',
-                    background: isDarkMode ? 'rgba(10, 20, 15, 0.95)' : 'rgba(255, 255, 255, 0.9)'
-                };
-            case 'local':
-            default:
-                return {
-                    borderColor: 'var(--glass-border)',
-                    boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)'
-                };
-        }
-    };
-
-    const providerTheme = getProviderTheme(provider);
-    const currentStyles = {
-        ...isDarkMode ? darkStyles : lightStyles,
+    const styles = {
         container: {
-            ...(isDarkMode ? darkStyles.container : lightStyles.container),
-            ...providerTheme,
-            transition: 'all 0.5s cubic-bezier(0.25, 0.8, 0.25, 1)', // Smooth transition for everything
-        }
+            height: '100%',
+            width: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            position: 'relative',
+            color: isDarkMode ? '#e3e3e3' : '#333',
+            fontFamily: "'Inter', sans-serif",
+            overflow: 'hidden',
+        },
+        topBar: {
+            position: 'absolute',
+            top: '20px',
+            right: '20px',
+            display: 'flex',
+            gap: '12px',
+            zIndex: 10,
+        },
+        heroSection: {
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            paddingLeft: '10%',
+            paddingRight: '10%',
+            opacity: messages.length === 0 ? 1 : 0,
+            transition: 'opacity 0.3s ease',
+            pointerEvents: messages.length === 0 ? 'auto' : 'none',
+        },
+        chatList: {
+            flex: 1,
+            overflowY: 'auto',
+            padding: '80px 0 120px 0', // Remove horizontal padding from container
+            display: messages.length === 0 ? 'none' : 'flex',
+            flexDirection: 'column',
+            gap: '20px',
+            width: '100%', // Full width for scrollbar
+            // margin: '0 auto', // Remove centering of the container
+        },
+        messageContainer: { // New wrapper for centering content
+            maxWidth: '1000px',
+            width: '100%',
+            margin: '0 auto',
+            padding: '0 20px', // Add padding here
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px',
+        },
+        greeting: {
+            fontSize: '3.5rem',
+            fontWeight: '500',
+            background: 'linear-gradient(90deg, #4285F4, #9B72CB, #D96570)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            marginBottom: '10px',
+            lineHeight: 1.2
+        },
+        subGreeting: {
+            fontSize: '3.5rem',
+            fontWeight: '500',
+            color: isDarkMode ? '#444746' : '#888',
+            marginBottom: '40px',
+            lineHeight: 1.2
+        },
+        inputContainer: {
+            position: 'absolute',
+            bottom: '40px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '90%',
+            maxWidth: '800px',
+            zIndex: 20,
+        },
+        pill: {
+            background: isDarkMode ? '#1e1f20' : '#f0f4f9',
+            borderRadius: '40px',
+            padding: '16px 24px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            boxShadow: isDarkMode ? '0 4px 10px rgba(0,0,0,0.3)' : '0 2px 6px rgba(0,0,0,0.1)',
+            transition: 'all 0.3s ease',
+        },
+        input: {
+            flex: 1,
+            background: 'transparent',
+            border: 'none',
+            fontSize: '1.1rem',
+            color: isDarkMode ? '#e3e3e3' : '#1f1f1f',
+            outline: 'none',
+        },
+        iconButton: {
+            background: 'transparent',
+            border: 'none',
+            color: isDarkMode ? '#e3e3e3' : '#444746',
+            cursor: 'pointer',
+            fontSize: '1.2rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '8px',
+            borderRadius: '50%',
+            transition: 'background 0.2s',
+        },
+        sendButton: {
+            background: isDarkMode ? '#e3e3e3' : '#1f1f1f',
+            color: isDarkMode ? '#1f1f1f' : '#fff',
+            border: 'none',
+            borderRadius: '50%',
+            width: '40px',
+            height: '40px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            marginLeft: '8px'
+        },
+        stopButton: {
+            background: '#ef4444', // Red
+            borderRadius: '4px',
+            width: '24px',
+            height: '24px',
+            border: 'none',
+            cursor: 'pointer',
+            marginLeft: '15px' // Space it out
+        },
+        providerLabel: {
+            fontSize: '0.8rem',
+            color: isDarkMode ? '#8e918f' : '#5e5e5e',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '4px 8px',
+            borderRadius: '12px',
+            background: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+        },
+        messageRow: {
+            display: 'flex',
+            gap: '16px',
+            lineHeight: '1.6',
+        },
+        avatar: {
+            width: '32px',
+            height: '32px',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.2rem',
+            flexShrink: 0,
+        },
+        iconHover: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
     };
+
+    const inputRef = useRef(null);
+
+    useEffect(() => {
+        if (!isLoading) {
+            // Slight delay to ensure element is enabled before focusing
+            setTimeout(() => {
+                inputRef.current?.focus();
+            }, 50);
+        }
+    }, [isLoading]);
 
     return (
-        <div style={currentStyles.container} className="chat-container">
-            <div className="rabbit-patrol">🐇</div>
-            <div style={currentStyles.header}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <h2>growGPT</h2>
-                    <ProviderDropdown
-                        currentProvider={provider}
-                        onSelect={setProvider}
-                        isDarkMode={isDarkMode}
-                    />
-                </div>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <button
-                        onClick={handleTalkModeInput}
-                        style={{
-                            ...currentStyles.themeButton,
-                            color: isListening && voiceMode === 'talk' ? '#ef4444' : 'inherit'
-                        }}
-                        className="interactive"
-                        title="Start Voice Conversation"
-                    >
-                        🎧
-                    </button>
-                    <button
-                        onClick={() => {
-                            const newMode = !isTalkMode;
-                            setIsTalkMode(newMode);
-                            if (!newMode) stopSpeaking();
-                        }}
-                        style={currentStyles.themeButton}
-                        className="interactive"
-                        title={isTalkMode ? "Disable Talk Mode" : "Enable Talk Mode"}
-                    >
-                        {isTalkMode ? '🔊' : '🔇'}
-                    </button>
-                    <button onClick={toggleTheme} style={currentStyles.themeButton} className="interactive">
-                        {isDarkMode ? '☀️' : '🌙'}
-                    </button>
-                    <button onClick={onLogout} style={currentStyles.smallButton} className="interactive">Logout</button>
-                </div>
-            </div>
-
-            <div style={currentStyles.chatArea}>
-                {messages.map((msg) => (
-                    <div
-                        key={msg.id}
-                        style={{
-                            ...currentStyles.messageRow,
-                            justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start',
-                            alignItems: 'flex-end', // Align icons at bottom
-                            gap: '8px'
-                        }}
-                    >
-                        {/* Bot Icon (Left) */}
-                        {msg.sender === 'ai' && (
-                            <div style={{
-                                width: '30px', height: '30px', borderRadius: '50%', background: '#444',
-                                display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.2rem'
-                            }} title={msg.provider ? `Provider: ${msg.provider}` : 'AI'}>
-                                {msg.provider === 'gemini' ? '✨' : msg.provider === 'chatgpt' ? '🧠' : '🤖'}
-                            </div>
-                        )}
-
-                        <div style={{
-                            ...currentStyles.bubble,
-                            backgroundColor: msg.sender === 'user' ? currentStyles.userBubbleColor : currentStyles.botBubbleColor,
-                            color: msg.sender === 'user' ? '#fff' : currentStyles.botTextColor,
-                            borderRadius: msg.sender === 'user' ? '18px 18px 0 18px' : '18px 18px 18px 0'
-                        }}>
-                            {msg.text}
-                        </div>
-
-                        {/* User Icon (Right) */}
-                        {msg.sender === 'user' && (
-                            <div style={{
-                                width: '30px', height: '30px', borderRadius: '50%', background: '#3b82f6',
-                                display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '1.2rem'
-                            }}>
-                                👤
-                            </div>
-                        )}
-                    </div>
-                ))}
-                {isLoading && (
-                    <div style={{ ...currentStyles.messageRow, justifyContent: 'flex-start' }}>
-                        <div style={{ ...currentStyles.bubble, backgroundColor: currentStyles.botBubbleColor, color: '#888' }}>
-                            Thinking...
-                        </div>
-                    </div>
-                )}
-                <div ref={messagesEndRef} />
-            </div>
-
-            <form onSubmit={handleSend} style={currentStyles.inputArea}>
+        <div style={styles.container} className="chat-interface">
+            {/* Top Bar Controls */}
+            <div style={styles.topBar}>
                 <button
-                    type="button"
-                    onClick={handleDictationInput}
-                    style={{
-                        ...currentStyles.button,
-                        backgroundColor: isListening && voiceMode === 'dictation' ? '#ef4444' : '#666',
-                        padding: '10px 14px',
-                        marginRight: '8px'
-                    }}
-                    className="interactive"
-                    title="Dictation Mode"
-                >
-                    {isListening && voiceMode === 'dictation' ? '🛑' : '🎤'}
-                </button>
-                <input
-                    type="text"
-                    value={inputText}
-                    onChange={(e) => setInputText(e.target.value)}
-                    placeholder={isListening && voiceMode === 'dictation' ? "Listening..." : "Ask about Java or Spring Boot..."}
-                    style={currentStyles.input}
-                    disabled={isLoading}
-                    className="interactive-input"
-                />
-                <button
-                    type="submit"
-                    disabled={isLoading || !inputText.trim()}
-                    style={{
-                        ...currentStyles.button,
-                        opacity: isLoading || !inputText.trim() ? 0.5 : 1
-                    }}
+                    onClick={handleClear}
+                    style={{ ...styles.iconButton, fontSize: '0.9rem', border: '1px solid rgba(128,128,128,0.3)', borderRadius: '20px', padding: '6px 16px' }}
                     className="interactive"
                 >
-                    Send
+                    Clear
                 </button>
-            </form>
-            {/* Owner Footer */}
-            <div style={{ textAlign: 'center', paddingBottom: '10px' }}>
-                <OwnerFooter />
+                <button
+                    onClick={toggleTheme}
+                    style={{ ...styles.iconButton, fontSize: '0.9rem', border: '1px solid rgba(128,128,128,0.3)', borderRadius: '20px', padding: '6px 16px' }}
+                    className="interactive"
+                >
+                    {isDarkMode ? 'Light' : 'Dark'}
+                </button>
+                <button
+                    onClick={onLogout}
+                    style={{ ...styles.iconButton, fontSize: '0.9rem', border: '1px solid rgba(128,128,128,0.3)', borderRadius: '20px', padding: '6px 16px' }}
+                    className="interactive"
+                >
+                    Logout
+                </button>
             </div>
 
-            {/* Listening Overlay (Whisper Mode Animation) - Only for Talk Mode */}
-            {isListening && voiceMode === 'talk' && (
-                <div style={{
-                    position: 'absolute',
-                    inset: 0,
-                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-                    backdropFilter: 'blur(5px)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    zIndex: 200,
-                    color: 'white',
-                    paddingTop: '40px'
-                }}>
-                    <button
-                        onClick={stopListening}
-                        style={{
-                            position: 'absolute',
-                            top: '20px',
-                            right: '20px',
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'white',
-                            fontSize: '1.5rem',
-                            cursor: 'pointer',
-                            padding: '10px'
-                        }}
-                    >
-                        ✕
-                    </button>
-                    <div style={{
-                        width: '80px',
-                        height: '80px',
-                        borderRadius: '50%',
-                        background: '#ef4444',
-                        boxShadow: '0 0 0 0 rgba(239, 68, 68, 0.7)',
-                        animation: 'pulse-red 1.5s infinite',
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        fontSize: '2rem'
-                    }}>
-                        🎙️
-                    </div>
-                    <h3 style={{ marginTop: '20px', fontWeight: '300', letterSpacing: '1px' }}>Listening...</h3>
-                    <style>{`
-                        @keyframes pulse-red {
-                            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-                            70% { transform: scale(1); box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
-                            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-                        }
-                    `}</style>
+            {/* Hero Greeting (Only when empty) */}
+            {messages.length === 0 && (
+                <div style={styles.heroSection}>
+                    <div style={{ fontSize: '3rem', marginBottom: '20px' }}>✨</div>
+                    <h1 style={styles.greeting}>Hi {userName}</h1>
+                    <h2 style={styles.subGreeting}>Where should we start?</h2>
                 </div>
             )}
 
+            {/* Messages List (When not empty) */}
+            <div style={styles.chatList}>
+                <div style={styles.messageContainer}>
+                    {messages.map((msg) => (
+                        <div key={msg.id} style={styles.messageRow}>
+                            {msg.sender === 'ai' ? (
+                                <div style={{ ...styles.avatar, background: 'linear-gradient(135deg, #4285F4, #9B72CB)' }}>
+                                    ✨
+                                </div>
+                            ) : (
+                                <div style={{ ...styles.avatar, background: '#D9D9D9', marginLeft: 'auto', order: 2 }}>
+                                    👤
+                                </div>
+                            )}
+                            <div style={{
+                                flex: 1,
+                                color: isDarkMode ? '#e3e3e3' : '#1f1f1f',
+                                textAlign: msg.sender === 'user' ? 'right' : 'left',
+                                order: msg.sender === 'user' ? 1 : 2
+                            }}>
+                                {msg.sender === 'user' ? (
+                                    <div style={{ background: isDarkMode ? '#2c2c2c' : '#f0f4f9', padding: '12px 20px', borderRadius: '20px', display: 'inline-block' }}>
+                                        {msg.text}
+                                    </div>
+                                ) : (
+                                    <div style={{ background: '#000000', color: '#ffffff', padding: '12px 20px', borderRadius: '20px', display: 'inline-block', border: '1px solid #333' }}>
+                                        {msg.text}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+
+                    {isLoading && (
+                        <div style={styles.messageRow}>
+                            <div style={{ ...styles.avatar, background: 'linear-gradient(135deg, #4285F4, #9B72CB)' }}>
+                                ✨
+                            </div>
+                            <div style={{ alignSelf: 'center', color: '#888' }}>Thinking...</div>
+                        </div>
+                    )}
+                    <div ref={messagesEndRef} />
+                </div>
+            </div>
+
+            {/* Floating Input Pill */}
+            <div style={styles.inputContainer}>
+                {/* Upload Menu (Absolute above the pill) */}
+                {showUploadMenu && (
+                    <div style={{
+                        position: 'absolute',
+                        bottom: '70px',
+                        left: '0',
+                        background: isDarkMode ? '#1e1f20' : '#fff',
+                        borderRadius: '12px',
+                        padding: '8px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                        zIndex: 100,
+                        border: isDarkMode ? '1px solid #333' : '1px solid #eee',
+                        minWidth: '150px'
+                    }}>
+                        <button
+                            onClick={() => fileInputRef.current.click()}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                background: 'transparent',
+                                border: 'none',
+                                color: isDarkMode ? '#e3e3e3' : '#333',
+                                padding: '8px 12px',
+                                width: '100%',
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                                borderRadius: '8px',
+                                fontSize: '0.9rem'
+                            }}
+                            className="interactive"
+                        >
+                            📄 Upload Documents
+                        </button>
+                    </div>
+                )}
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    style={{ display: 'none' }}
+                    onChange={handleFileUpload}
+                />
+
+                <div style={styles.pill}>
+                    {/* Plus Icon (Menu Toggle) */}
+                    <div
+                        onClick={() => setShowUploadMenu(!showUploadMenu)}
+                        style={{ ...styles.iconButton, cursor: 'pointer', opacity: 1 }}
+                        className="interactive"
+                    >
+                        +
+                    </div>
+
+                    <input
+                        type="text"
+                        value={inputText}
+                        onChange={(e) => setInputText(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && !isLoading && handleSend(e)}
+                        placeholder="Ask me anything..."
+                        style={styles.input}
+                        autoFocus
+                    />
+
+                    {/* Provider Toggle Pill */}
+                    <div
+                        onClick={() => {
+                            if (provider === 'local') setProvider('gemini');
+                            else if (provider === 'gemini') setProvider('chatgpt');
+                            else setProvider('local');
+                        }}
+                        style={styles.providerLabel}
+                        title="Click to switch provider"
+                        className="interactive"
+                    >
+                        {provider === 'local' && '💻 Local'}
+                        {provider === 'gemini' && '✨ Gemini'}
+                        {provider === 'chatgpt' && '🤖 ChatGPT'}
+                        <span style={{ fontSize: '0.6rem' }}>▼</span>
+                    </div>
+
+                    {/* Mic Button */}
+                    <button
+                        onClick={handleDictationInput}
+                        style={{ ...styles.iconButton, color: isListening ? '#ef4444' : (isDarkMode ? '#e3e3e3' : '#444746') }}
+                        className="interactive"
+                        title="Voice Input"
+                    >
+                        {isListening ? '🛑' : '🎤'}
+                    </button>
+
+                    {/* Send / Stop Button */}
+                    {isLoading ? (
+                        <button onClick={handleStop} style={styles.stopButton} className="interactive" title="Stop Generation"></button>
+                    ) : (
+                        <button onClick={handleSend} style={styles.sendButton} className="interactive" disabled={!inputText.trim()}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M2.01 21L23 12L2.01 3L2 10L17 12L2 14L2.01 21Z" fill="currentColor" />
+                            </svg>
+                        </button>
+                    )}
+                </div>
+                <div style={{ textAlign: 'center', marginTop: '10px', fontSize: '0.75rem', color: '#888' }}>
+                    Gemini may display inaccurate info, including about people, so double-check its responses.
+                </div>
+            </div>
+
+            {/* Talk Mode Toggle (Hidden/Floating or integrated? Leaving integrated for now but subtle) */}
+            <div style={{ position: 'absolute', bottom: '15px', right: '20px', zIndex: 30 }}>
+                <button
+                    onClick={() => {
+                        const newMode = !isTalkMode;
+                        setIsTalkMode(newMode);
+                        if (!newMode) stopSpeaking();
+                    }}
+                    style={{ ...styles.iconButton, fontSize: '1rem', opacity: 0.5 }}
+                    title={isTalkMode ? "Disable Text-to-Speech" : "Enable Text-to-Speech"}
+                >
+                    {isTalkMode ? '🔊' : '🔇'}
+                </button>
+            </div>
         </div>
-    );
-};
-
-// Base Styles
-const baseStyles = {
-    container: {
-        display: 'flex',
-        flexDirection: 'column',
-        height: '600px',
-        width: '800px',
-        maxWidth: '90vw',
-        border: '1px solid var(--glass-border)',
-        borderRadius: '16px',
-        backdropFilter: 'blur(20px)',
-        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
-        overflow: 'hidden',
-        transition: 'background-color 0.3s ease',
-    },
-    header: {
-        padding: '1rem',
-        borderBottom: '1px solid var(--glass-border)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        background: 'rgba(255, 255, 255, 0.02)',
-    },
-    chatArea: {
-        flex: 1,
-        padding: '1rem',
-        overflowY: 'auto',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '0.8rem',
-    },
-    messageRow: {
-        display: 'flex',
-        width: '100%',
-    },
-    bubble: {
-        padding: '10px 14px',
-        maxWidth: '80%',
-        lineHeight: '1.4',
-        fontSize: '0.9rem',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-        textAlign: 'left',
-        wordWrap: 'break-word',
-    },
-    inputArea: {
-        padding: '1rem',
-        borderTop: '1px solid var(--glass-border)',
-        display: 'flex',
-        gap: '0.5rem',
-        background: 'rgba(255, 255, 255, 0.02)',
-    },
-    input: {
-        flex: 1,
-        padding: '10px 14px',
-        borderRadius: '20px',
-        border: '1px solid var(--glass-border)',
-        fontSize: '0.9rem',
-        outline: 'none',
-    },
-    button: {
-        padding: '10px 20px',
-        borderRadius: '20px',
-        border: 'none',
-        backgroundColor: 'var(--primary-color)',
-        color: 'white',
-        fontWeight: '600',
-        cursor: 'pointer',
-        transition: 'all 0.2s',
-        fontSize: '0.9rem',
-    },
-    smallButton: {
-        padding: '4px 8px',
-        borderRadius: '4px',
-        border: '1px solid var(--glass-border)',
-        backgroundColor: 'transparent',
-        fontSize: '0.75rem',
-        cursor: 'pointer',
-    },
-    themeButton: {
-        background: 'transparent',
-        border: 'none',
-        cursor: 'pointer',
-        fontSize: '1.2rem',
-        padding: '0 5px'
-    },
-    select: {
-        padding: '2px 5px',
-        borderRadius: '4px',
-        border: '1px solid var(--glass-border)',
-        backgroundColor: 'rgba(0, 0, 0, 0.2)',
-        color: 'inherit',
-        fontSize: '0.8rem',
-        outline: 'none',
-        cursor: 'pointer',
-    }
-};
-
-const darkStyles = {
-    ...baseStyles,
-    container: {
-        ...baseStyles.container,
-        backgroundColor: 'rgba(12, 12, 18, 0.95)', // Much darker, less red
-        color: 'white',
-    },
-    input: {
-        ...baseStyles.input,
-        backgroundColor: 'rgba(0,0,0,0.3)',
-        color: 'white',
-    },
-    smallButton: {
-        ...baseStyles.smallButton,
-        color: '#aaa',
-    },
-    userBubbleColor: 'var(--chat-bubble-user)',
-    botBubbleColor: 'var(--chat-bubble-bot)',
-    botTextColor: '#e0e0e0',
-};
-
-const lightStyles = {
-    ...baseStyles,
-    container: {
-        ...baseStyles.container,
-        backgroundColor: 'rgba(255, 255, 255, 0.85)',
-        color: '#333',
-    },
-    input: {
-        ...baseStyles.input,
-        backgroundColor: 'rgba(0,0,0,0.05)',
-        color: '#333',
-        border: '1px solid #ccc',
-    },
-    smallButton: {
-        ...baseStyles.smallButton,
-        color: '#555',
-        borderColor: '#ccc',
-    },
-    userBubbleColor: 'var(--primary-color)',
-    botBubbleColor: '#f0f0f0',
-    botTextColor: '#333',
-};
-
-
-
-const OwnerFooter = () => {
-    const [showOwner, setShowOwner] = useState(false);
-    return (
-        <span
-            onClick={() => setShowOwner(!showOwner)}
-            style={{
-                borderBottom: '1px dotted #888',
-                cursor: 'pointer',
-                fontSize: '0.8rem',
-                opacity: 0.7,
-                marginTop: '10px',
-                display: 'inline-block'
-            }}
-        >
-            {showOwner ? 'Made by Rishabh' : 'Owner Details'}
-        </span>
     );
 };
 
