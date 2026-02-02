@@ -238,27 +238,29 @@ const Background3D = ({ isDarkMode, isLoginPage }) => {
                         position: 'absolute',
                         right: '5%',
                         bottom: '10%',
-                        width: '300px',
-                        height: '300px',
-                        backgroundImage: 'url("/assets/robot.png")',
+                        width: '400px',
+                        height: '400px',
+                        backgroundImage: `url("${import.meta.env.BASE_URL}assets/robot.png")`,
                         backgroundSize: 'contain',
+                        backgroundPosition: 'center',
                         backgroundRepeat: 'no-repeat',
-                        opacity: 0.4,
-                        zIndex: 1,
-                        filter: 'drop-shadow(0 0 20px rgba(0, 255, 255, 0.3))'
+                        opacity: 0.6,
+                        zIndex: 2,
+                        filter: 'drop-shadow(0 0 30px rgba(0, 255, 255, 0.4))'
                     }} />
                     <div style={{
                         position: 'absolute',
                         left: '5%',
                         top: '10%',
-                        width: '350px',
-                        height: '350px',
-                        backgroundImage: 'url("/assets/ai.png")',
+                        width: '450px',
+                        height: '450px',
+                        backgroundImage: `url("${import.meta.env.BASE_URL}assets/ai.png")`,
                         backgroundSize: 'contain',
+                        backgroundPosition: 'center',
                         backgroundRepeat: 'no-repeat',
-                        opacity: 0.3,
-                        zIndex: 1,
-                        filter: 'drop-shadow(0 0 20px rgba(138, 43, 226, 0.3))'
+                        opacity: 0.5,
+                        zIndex: 2,
+                        filter: 'drop-shadow(0 0 30px rgba(138, 43, 226, 0.4))'
                     }} />
                 </>
             )}
