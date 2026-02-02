@@ -20,7 +20,7 @@ function App() {
 
   return (
     <>
-      <Background3D isDarkMode={isDarkMode} />
+      <Background3D isDarkMode={isDarkMode} isLoginPage={!isLoggedIn} />
       <div style={{
         height: '100vh',
         width: '100vw',

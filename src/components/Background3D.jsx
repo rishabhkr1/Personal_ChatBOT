@@ -208,7 +208,7 @@ const Mountains = () => {
     );
 };
 
-const Background3D = ({ isDarkMode }) => {
+const Background3D = ({ isDarkMode, isLoginPage }) => {
     // Colors based on mode
     const bgGradient = isDarkMode
         ? 'linear-gradient(to bottom, #000000 0%, #1a1a1a 100%)'
@@ -229,15 +229,46 @@ const Background3D = ({ isDarkMode }) => {
             zIndex: 0,
             background: bgGradient,
             pointerEvents: 'none',
-            transition: 'background 1s ease' // Smooth transition
+            transition: 'background 1s ease', // Smooth transition
+            overflow: 'hidden'
         }}>
+            {isLoginPage && (
+                <>
+                    <div style={{
+                        position: 'absolute',
+                        right: '5%',
+                        bottom: '10%',
+                        width: '300px',
+                        height: '300px',
+                        backgroundImage: 'url("/assets/robot.png")',
+                        backgroundSize: 'contain',
+                        backgroundRepeat: 'no-repeat',
+                        opacity: 0.4,
+                        zIndex: 1,
+                        filter: 'drop-shadow(0 0 20px rgba(0, 255, 255, 0.3))'
+                    }} />
+                    <div style={{
+                        position: 'absolute',
+                        left: '5%',
+                        top: '10%',
+                        width: '350px',
+                        height: '350px',
+                        backgroundImage: 'url("/assets/ai.png")',
+                        backgroundSize: 'contain',
+                        backgroundRepeat: 'no-repeat',
+                        opacity: 0.3,
+                        zIndex: 1,
+                        filter: 'drop-shadow(0 0 20px rgba(138, 43, 226, 0.3))'
+                    }} />
+                </>
+            )}
             <Canvas>
                 <PerspectiveCamera makeDefault position={[0, 0, 15]} />
                 <ambientLight intensity={isDarkMode ? 0.4 : 1.2} />
                 <directionalLight position={[10, 10, 5]} intensity={lightIntensity} color="#ffffff" />
 
                 {/* 3D Lightning Bolt System */}
-                <LightningBolt />
+                {!isLoginPage && <LightningBolt />}
 
                 {/* Bird Flock */}
                 <BirdFlock />
@@ -252,7 +283,7 @@ const Background3D = ({ isDarkMode }) => {
                 </Clouds>
 
                 {/* Rain */}
-                <Rain count={2000} />
+                {!isLoginPage && <Rain count={2000} />}
 
                 <fog attach="fog" args={[fogColor, 5, 60]} />
             </Canvas>

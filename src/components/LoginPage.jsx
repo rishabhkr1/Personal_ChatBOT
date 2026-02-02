@@ -6,6 +6,7 @@ const LoginPage = ({ onLogin }) => {
     const [password, setPassword] = useState('password123');
     const [error, setError] = useState('');
     const [isUnlocking, setIsUnlocking] = useState(false);
+    const [showSignupOptions, setShowSignupOptions] = useState(false);
 
     // Lamp Drag Logic
     const [isDragging, setIsDragging] = useState(false);
@@ -111,7 +112,86 @@ const LoginPage = ({ onLogin }) => {
     );
 
     return (
-        <div className="login-wrapper" style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <div className="login-wrapper" style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
+            {/* Signup Tab */}
+            <div style={{
+                position: 'fixed',
+                top: '20px',
+                right: '20px',
+                zIndex: 100
+            }}>
+                <button
+                    onClick={() => setShowSignupOptions(!showSignupOptions)}
+                    style={{
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        padding: '10px 20px',
+                        borderRadius: '30px',
+                        color: '#fff',
+                        cursor: 'pointer',
+                        backdropFilter: 'blur(10px)',
+                        fontFamily: 'monospace',
+                        fontSize: '0.9rem',
+                        transition: 'all 0.3s ease',
+                        boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
+                    }}
+                    onMouseEnter={(e) => {
+                        e.target.style.background = 'rgba(255, 255, 255, 0.2)';
+                        e.target.style.borderColor = '#00ffff';
+                    }}
+                    onMouseLeave={(e) => {
+                        e.target.style.background = 'rgba(255, 255, 255, 0.1)';
+                        e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                    }}
+                >
+                    Sign-up for free
+                </button>
+
+                {showSignupOptions && (
+                    <div style={{
+                        position: 'absolute',
+                        top: '50px',
+                        right: '0',
+                        background: 'rgba(20, 20, 20, 0.95)',
+                        border: '1px solid #333',
+                        borderRadius: '12px',
+                        padding: '15px',
+                        width: '200px',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px',
+                        animation: 'fadeIn 0.3s ease'
+                    }}>
+                        <style>{`
+                            @keyframes fadeIn {
+                                from { opacity: 0; transform: translateY(-10px); }
+                                to { opacity: 1; transform: translateY(0); }
+                            }
+                            .signup-option {
+                                padding: 8px;
+                                border-radius: 6px;
+                                color: #ccc;
+                                cursor: pointer;
+                                transition: all 0.2s;
+                                background: #2a2a2a;
+                                border: none;
+                                text-align: left;
+                                font-size: 0.85rem;
+                            }
+                            .signup-option:hover {
+                                background: #3a3a3a;
+                                color: #fff;
+                                transform: translateX(5px);
+                            }
+                        `}</style>
+                        <button className="signup-option">Continue with Google</button>
+                        <button className="signup-option">Continue with GitHub</button>
+                        <button className="signup-option">Sign up with Email</button>
+                    </div>
+                )}
+            </div>
+
             {/* Hanging Lamp */}
             <Lamp />
 
