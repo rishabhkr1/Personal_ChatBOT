@@ -111,8 +111,88 @@ const LoginPage = ({ onLogin }) => {
         </div>
     );
 
+    const SignupModal = () => {
+        if (!showSignupOptions) return null;
+
+        return (
+            <div
+                style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100vw',
+                    height: '100vh',
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    backdropFilter: 'blur(10px)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 2000,
+                    animation: 'fadeIn 0.3s ease'
+                }}
+                onClick={() => setShowSignupOptions(false)}
+            >
+                <div
+                    style={{
+                        background: 'linear-gradient(145deg, #1e1e1e, #121212)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        padding: '40px',
+                        borderRadius: '24px',
+                        width: '90%',
+                        maxWidth: '400px',
+                        boxShadow: '0 25px 50px rgba(0,0,0,0.5)',
+                        textAlign: 'center',
+                        position: 'relative',
+                        animation: 'modalSlideUp 0.4s ease'
+                    }}
+                    onClick={e => e.stopPropagation()}
+                >
+                    <style>{`
+                        @keyframes modalSlideUp {
+                            from { opacity: 0; transform: translateY(20px); }
+                            to { opacity: 1; transform: translateY(0); }
+                        }
+                        @keyframes fadeIn {
+                            from { opacity: 0; }
+                            to { opacity: 1; }
+                        }
+                        .signup-btn {
+                            width: 100%;
+                            padding: 12px;
+                            margin-bottom: 10px;
+                            border-radius: 8px;
+                            border: 1px solid #333;
+                            background: #222;
+                            color: #fff;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            gap: 10px;
+                        }
+                        .signup-btn:hover {
+                            background: #333;
+                            border-color: #00ffff;
+                        }
+                    `}</style>
+                    <h2 style={{ marginBottom: '20px', color: '#fff' }}>Join growGpt</h2>
+                    <button className="signup-btn">Continue with Google</button>
+                    <button className="signup-btn">Continue with GitHub</button>
+                    <button className="signup-btn" style={{ background: '#00ffff', color: '#000', fontWeight: 'bold' }}>Sign up with Email</button>
+                    <button
+                        onClick={() => setShowSignupOptions(false)}
+                        style={{ marginTop: '20px', background: 'none', border: 'none', color: '#666', cursor: 'pointer' }}
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
     return (
-        <div className="login-wrapper" style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#000' }}>
+        <div className="login-wrapper" style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
             {/* Signup Tab */}
             <div style={{
                 position: 'fixed',
@@ -121,76 +201,38 @@ const LoginPage = ({ onLogin }) => {
                 zIndex: 100
             }}>
                 <button
-                    onClick={() => setShowSignupOptions(!showSignupOptions)}
+                    onClick={() => setShowSignupOptions(true)}
                     style={{
                         background: 'rgba(255, 255, 255, 0.1)',
                         border: '1px solid rgba(255, 255, 255, 0.2)',
-                        padding: '10px 20px',
+                        padding: '10px 25px',
                         borderRadius: '30px',
                         color: '#fff',
                         cursor: 'pointer',
                         backdropFilter: 'blur(10px)',
-                        fontFamily: 'monospace',
+                        fontFamily: 'Inter, sans-serif',
+                        fontWeight: '600',
                         fontSize: '0.9rem',
                         transition: 'all 0.3s ease',
-                        boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
+                        boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+                        letterSpacing: '0.5px'
                     }}
                     onMouseEnter={(e) => {
                         e.target.style.background = 'rgba(255, 255, 255, 0.2)';
                         e.target.style.borderColor = '#00ffff';
+                        e.target.style.transform = 'scale(1.05)';
                     }}
                     onMouseLeave={(e) => {
                         e.target.style.background = 'rgba(255, 255, 255, 0.1)';
                         e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                        e.target.style.transform = 'scale(1)';
                     }}
                 >
                     Sign-up for free
                 </button>
-
-                {showSignupOptions && (
-                    <div style={{
-                        position: 'absolute',
-                        top: '50px',
-                        right: '0',
-                        background: 'rgba(20, 20, 20, 0.95)',
-                        border: '1px solid #333',
-                        borderRadius: '12px',
-                        padding: '15px',
-                        width: '200px',
-                        boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '10px',
-                        animation: 'fadeIn 0.3s ease'
-                    }}>
-                        <style>{`
-                            @keyframes fadeIn {
-                                from { opacity: 0; transform: translateY(-10px); }
-                                to { opacity: 1; transform: translateY(0); }
-                            }
-                            .signup-option {
-                                padding: 8px;
-                                border-radius: 6px;
-                                color: #ccc;
-                                cursor: pointer;
-                                transition: all 0.2s;
-                                background: #2a2a2a;
-                                border: none;
-                                text-align: left;
-                                font-size: 0.85rem;
-                            }
-                            .signup-option:hover {
-                                background: #3a3a3a;
-                                color: #fff;
-                                transform: translateX(5px);
-                            }
-                        `}</style>
-                        <button className="signup-option">Continue with Google</button>
-                        <button className="signup-option">Continue with GitHub</button>
-                        <button className="signup-option">Sign up with Email</button>
-                    </div>
-                )}
             </div>
+
+            <SignupModal />
 
             {/* Hanging Lamp */}
             <Lamp />
@@ -207,16 +249,17 @@ const LoginPage = ({ onLogin }) => {
                 alignItems: 'center',
                 width: '400px',
                 padding: '3rem 2rem 2rem 2rem',
-                borderRadius: '4px', // More boxy/iron look
-                background: 'linear-gradient(145deg, #1a1a1a, #2a2a2a)',
-                border: '4px solid #333',
-                borderTop: 'none', // Connected to chains
-                boxShadow: '0 20px 50px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(0,0,0,0.8)',
+                borderRadius: '24px', // Softer corners
+                background: 'rgba(26, 26, 26, 0.6)', // More transparent
+                backdropFilter: 'blur(20px)', // Strong glass effect
+                border: '1px solid rgba(255, 255, 255, 0.1)', // Thinner, lighter border
+                boxShadow: '0 25px 50px rgba(0, 0, 0, 0.4)',
                 color: '#e0e0e0',
                 textAlign: 'center',
                 position: 'relative',
                 zIndex: 10,
-                marginTop: '100px'
+                marginTop: '100px',
+                transition: 'all 0.3s ease'
             }}>
                 {/* Iron Texture Overlay */}
                 <div style={{
@@ -237,7 +280,7 @@ const LoginPage = ({ onLogin }) => {
                     paddingBottom: '10px',
                     width: '100%'
                 }}>
-                    SECURE VAULT
+                    SIGN-IN
                 </h2>
 
                 <form onSubmit={handleSubmit} style={{ width: '100%', position: 'relative', zIndex: 1 }}>
@@ -268,10 +311,24 @@ const LoginPage = ({ onLogin }) => {
                             {isUnlocking ? '🔓' : '🔒'}
                         </span>
                         <span style={{ marginLeft: '10px' }}>
-                            {isUnlocking ? 'UNLOCKING...' : 'DISENGAGE_LOCK'}
+                            {isUnlocking ? 'SIGNING IN...' : 'SIGN-IN'}
                         </span>
                     </button>
                 </form>
+
+                <p
+                    onClick={() => setShowSignupOptions(true)}
+                    style={{
+                        marginTop: '1.5rem',
+                        fontSize: '0.9rem',
+                        color: '#00ffff',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        fontFamily: 'Inter, sans-serif'
+                    }}
+                >
+                    New to growGpt? Click here to sign-up
+                </p>
 
                 <div
                     onClick={() => {

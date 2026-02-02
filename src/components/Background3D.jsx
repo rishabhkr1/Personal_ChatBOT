@@ -236,41 +236,57 @@ const Background3D = ({ isDarkMode, isLoginPage }) => {
                 <>
                     <div style={{
                         position: 'absolute',
-                        right: '5%',
-                        bottom: '10%',
-                        width: '400px',
-                        height: '400px',
+                        right: '-5%',
+                        bottom: '-5%',
+                        width: '80vw',
+                        height: '80vh',
                         backgroundImage: `url("${import.meta.env.BASE_URL}assets/robot.png")`,
                         backgroundSize: 'contain',
-                        backgroundPosition: 'center',
+                        backgroundPosition: 'right bottom',
                         backgroundRepeat: 'no-repeat',
-                        opacity: 0.6,
-                        zIndex: 2,
-                        filter: 'drop-shadow(0 0 30px rgba(0, 255, 255, 0.4))'
+                        opacity: 0.4,
+                        zIndex: 1,
+                        filter: 'drop-shadow(0 0 50px rgba(0, 255, 255, 0.2))'
                     }} />
                     <div style={{
                         position: 'absolute',
-                        left: '5%',
-                        top: '10%',
-                        width: '450px',
-                        height: '450px',
+                        left: '-5%',
+                        top: '-5%',
+                        width: '85vw',
+                        height: '85vh',
                         backgroundImage: `url("${import.meta.env.BASE_URL}assets/ai.png")`,
                         backgroundSize: 'contain',
-                        backgroundPosition: 'center',
+                        backgroundPosition: 'left top',
                         backgroundRepeat: 'no-repeat',
-                        opacity: 0.5,
-                        zIndex: 2,
-                        filter: 'drop-shadow(0 0 30px rgba(138, 43, 226, 0.4))'
+                        opacity: 0.35,
+                        zIndex: 1,
+                        filter: 'drop-shadow(0 0 50px rgba(138, 43, 226, 0.2))'
                     }} />
+                    <div style={{
+                        position: 'absolute',
+                        left: '50%',
+                        top: '45%',
+                        transform: 'translate(-50%, -50%)',
+                        fontSize: '15vw', // Back to a bit larger
+                        fontWeight: '900',
+                        color: 'rgba(255, 255, 255, 0.25)', // Increased opacity to 25%
+                        fontFamily: 'Inter, sans-serif',
+                        pointerEvents: 'none',
+                        zIndex: 1, // Above background but below card
+                        textTransform: 'uppercase',
+                        letterSpacing: '15px',
+                        whiteSpace: 'nowrap',
+                        filter: 'blur(1px)',
+                        textShadow: '0 0 50px rgba(255, 255, 255, 0.2)'
+                    }}>
+                        growGpt
+                    </div>
                 </>
             )}
             <Canvas>
                 <PerspectiveCamera makeDefault position={[0, 0, 15]} />
                 <ambientLight intensity={isDarkMode ? 0.4 : 1.2} />
                 <directionalLight position={[10, 10, 5]} intensity={lightIntensity} color="#ffffff" />
-
-                {/* 3D Lightning Bolt System */}
-                {!isLoginPage && <LightningBolt />}
 
                 {/* Bird Flock */}
                 <BirdFlock />
@@ -283,9 +299,6 @@ const Background3D = ({ isDarkMode, isLoginPage }) => {
                     <Cloud seed={1} bounds={[20, 6, 4]} volume={15} color={cloudColor1} position={[0, 5, -10]} opacity={0.8} speed={0.4} />
                     <Cloud seed={2} bounds={[20, 6, 4]} volume={15} color={cloudColor2} position={[0, -5, -12]} opacity={0.6} speed={0.3} />
                 </Clouds>
-
-                {/* Rain */}
-                {!isLoginPage && <Rain count={2000} />}
 
                 <fog attach="fog" args={[fogColor, 5, 60]} />
             </Canvas>
